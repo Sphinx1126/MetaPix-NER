@@ -1,2 +1,2 @@
 # MetaPix-NER
-MetaPix-NER: Period-Wise NER Method for Chinese Ancient Books via Meta-Learning Augmentation in Low-Resource Scenario
+Crossing Historical Boundaries via Meta-Learning: Low-Resource Named Entity Recognition for Preserving Ancient Chinese Texts
