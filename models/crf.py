@@ -200,7 +200,7 @@ class functional_CRF(nn.Module):
             # prepare t-th mask of sequences in each sequence
             # (batch_size, 1)
             mask_t = mask[:, t].view(batch_size, 1).type(torch.BoolTensor)
-            mask_t = mask_t.cuda() if CRF.CUDA else mask_t
+            mask_t = mask_t.to(self.device) if CRF.CUDA else mask_t
 
             # 各系列におけるt番目の系列ラベルの遷移確率
             # prepare the transition probability of the t-th sequence label
@@ -245,8 +245,8 @@ class functional_CRF(nn.Module):
         trans = self.trans_matrix.unsqueeze(-1)
 
         for t in range(seq_len - 1):
-            mask_t = mask[:, t].cuda() if CRF.CUDA else mask[:, t]
-            mask_t1 = mask[:, t + 1] if CRF.CUDA else mask[:, t + 1]
+            mask_t = mask[:, t].to(self.device) if CRF.CUDA else mask[:, t]
+            mask_t1 = mask[:, t + 1].to(self.device) if CRF.CUDA else mask[:, t + 1]
             # t+1番目のラベルのスコアを抽出
             # extract the score of t+1 label
             # (batch_size)

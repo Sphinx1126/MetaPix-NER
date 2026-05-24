@@ -8,9 +8,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from transformers import AutoTokenizer,AutoModel
-from lstm import functional_lstm
-from crf import functional_CRF
-from AdaptedBERT import AdaptedBERT
+from models.lstm import functional_lstm
+from models.crf import functional_CRF
+from models.AdaptedBERT import AdaptedBERT
 from collections import OrderedDict
 
 class NERLearner(nn.Module):
@@ -38,6 +38,7 @@ class NERLearner(nn.Module):
                                   batch_first=self.lstm_batch_first,bidirectional=self.lstm_bidirectional)
         self.linear=nn.Linear(self.lstm_hidden_size, self.num_labels)
         self.crf=functional_CRF(device=self.device,num_labels=self.num_labels)
+        self.loss_fn=nn.CrossEntropyLoss()
     
     def forward(self,
                 input_ids,attention_mask,
@@ -46,7 +47,8 @@ class NERLearner(nn.Module):
         if period_label is not None:
             period_emb=torch.mean(embs[1],dim=0)
             period_pred=self.softmax(self.period_classifier(period_emb))
-            period_loss=torch.sum(-period_label.float()*torch.log(period_pred+1e-15))
+            #period_loss=torch.sum(-period_label.float()*torch.log(period_pred+1e-15))
+            period_loss=self.loss_fn(period_pred,period_label.float())
         embs=self.lstm(embs[0]) if self.lstm_batch_first else self.lstm(embs[0].permute((1, 0, 2)))[0].permute((1, 0, 2))
         emission=self.linear(embs)
         if ner_labels is not None:
@@ -71,7 +73,8 @@ class NERLearner(nn.Module):
             period_emb=torch.mean(embs[1],dim=0)
             period_pred=F.softmax(F.linear(period_emb,
                                            fast_weights['period_classifier.weight'],fast_weights['period_classifier.bias']),dim=0)
-            period_loss=torch.sum(-period_label.float()*torch.log(period_pred+1e-15))
+            #period_loss=torch.sum(-period_label.float()*torch.log(period_pred+1e-15))
+            period_loss=self.loss_fn(period_pred,period_label.float())
         embs=embs[0] if self.lstm_batch_first else embs[0].permute((1, 0, 2))
         bilstm_weights=[fast_weights[name] for name in fast_weights if 'lstm' in name]
         embs=self.lstm.functional_forward(embs, bilstm_weights)[0]
@@ -92,10 +95,9 @@ class NERLearner(nn.Module):
 
 if __name__=='__main__':
     pretrained_bert=AutoModel.from_pretrained("../bert/")
-    device = torch.device("cuda:0")
     model=NERLearner(pretrained_bert,8,5,
                      200,1,False,True,
-                     6,device).cuda()
+                     6,True).cuda()
     
 
     text1=[114,114,514,0,0]

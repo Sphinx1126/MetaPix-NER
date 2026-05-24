@@ -27,7 +27,8 @@ class MAML(nn.Module):
     
     def forward(self, 
                 texts_spt, masks_spt, ner_label_spt, period_spt,
-                texts_qry, masks_qry, ner_label_qry, period_qry):
+                texts_qry, masks_qry, ner_label_qry, period_qry,
+                lr):
         create_graph = True
 
         fast_weights = OrderedDict([(name,param) for name,param in self.learner.named_parameters() if param.requires_grad])
@@ -40,11 +41,9 @@ class MAML(nn.Module):
                                           fast_weights.values(), 
                                           create_graph=create_graph,
                                           allow_unused=True)
-            warmup_step=int(self.num_updates*0.3)
-            step=inner_batch+1
-            lr=self.args.update_lr*step/warmup_step if step<=warmup_step else self.args.update_lr*2**(warmup_step-step)
+            
             fast_weights = OrderedDict(
-                (name, param - lr * grad) if grad is not None else (name, param)
+                (name, param - lr * grad) if grad is not None and 'adapter' not in name else (name, param)
                 for ((name, param), grad) in zip(fast_weights.items(), gradients)
             )
         
@@ -56,12 +55,12 @@ class MAML(nn.Module):
                                                                   ner_labels=ner_label_qry,period_label=period_qry)
         loss_qry=self.loss_lam*ner_loss_qry+(1-self.loss_lam)*period_loss_spt
 
-        return pred_qry,loss_qry
+        return pred_qry,loss_qry,ner_loss_qry,period_loss_spt
     
     def forward_test(self, 
                      texts_spt, masks_spt, ner_label_spt, period_spt,
                      texts_qry, masks_qry, ner_label_qry, period_qry,
-                     id2bio):
+                     lr, id2bio):
         create_graph = True
         self.train()
 
@@ -75,11 +74,9 @@ class MAML(nn.Module):
                                           fast_weights.values(), 
                                           create_graph=create_graph,
                                           allow_unused=True)
-            warmup_step=int(self.num_updates_test*0.3)
-            step=inner_batch+1
-            lr=self.args.update_lr*step/warmup_step if step<=warmup_step else self.args.update_lr*2**(warmup_step-step)
+            
             fast_weights = OrderedDict(
-                (name, param - lr * grad) if grad is not None else (name, param)
+                (name, param - lr * grad) if grad is not None and 'adapter' not in name else (name, param)
                 for ((name, param), grad) in zip(fast_weights.items(), gradients)
             )
         
